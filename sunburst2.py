@@ -14,24 +14,30 @@ if uploaded_file is not None:
     # Đếm số lượng theo cấp độ công việc và ngành học
     grouped = df.groupby(['Current_Job_Level', 'Field_of_Study']).size().reset_index(name='Count')
 
-    # Tính tổng trong mỗi cấp độ
+    # Tính tổng theo cấp độ công việc
     total_by_job_level = grouped.groupby('Current_Job_Level')['Count'].transform('sum')
 
     # Tính phần trăm
     grouped['Proportion'] = grouped['Count'] / total_by_job_level
     grouped['Percent_Label'] = (grouped['Proportion'] * 100).round(1).astype(str) + '%'
-
-    # Tạo custom label để hiển thị rõ
     grouped['Label'] = grouped['Field_of_Study'] + ' (' + grouped['Percent_Label'] + ')'
 
-    # Vẽ sunburst
+    # Mapping màu theo Job Level
+    color_map = {
+        'Entry Level': 'green',
+        'Mid Level': 'blue',
+        'Senior Level': 'orange',
+        'Executive': 'red'
+    }
+
+    # Vẽ biểu đồ sunburst
     fig = px.sunburst(
         grouped,
-        path=['Current_Job_Level', 'Label'],  # dùng label hiển thị phần trăm
+        path=['Current_Job_Level', 'Label'],
         values='Proportion',
-        title='Tỉ lệ ngành học trong từng cấp độ công việc',
-        color='Proportion',
-        color_continuous_scale='Blues'
+        color='Current_Job_Level',  # Phân màu theo cấp độ
+        color_discrete_map=color_map,
+        title='Tỉ lệ ngành học trong từng cấp độ công việc'
     )
 
     fig.update_traces(insidetextorientation='radial')
