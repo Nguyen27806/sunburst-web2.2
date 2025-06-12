@@ -75,10 +75,7 @@ fig_bar = px.bar(
     title=f"Entrepreneurship Distribution by Age – {selected_level} Level"
 )
 
-,
-            xanchor="center",
-            yanchor="middle"
-        )
+
 
 fig_bar.update_traces(
     hovertemplate="Entrepreneurship=%{customdata[0]}<br>Age=%{x}<br>Percentage=%{y:.0%}<extra></extra>",
