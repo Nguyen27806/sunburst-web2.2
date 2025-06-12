@@ -92,6 +92,11 @@ for age in df_bar['Age'].unique():
             yanchor="middle"
         )
 
+fig_bar.update_traces(
+    hovertemplate="Entrepreneurship=%{customdata[0]}<br>Age=%{x}<br>Percentage=%{y:.0%}<extra></extra>",
+    customdata=df_bar[['Entrepreneurship']].values
+)
+
 fig_bar.update_layout(
     margin=dict(t=40, l=40, r=40, b=40),
     legend_title_text='Entrepreneurship',
