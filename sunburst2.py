@@ -9,8 +9,12 @@ df = pd.read_excel("education_career_success.xlsx", sheet_name="education_career
 df_sunburst = df[['Entrepreneurship', 'Field_of_Study', 'Starting_Salary']].copy()
 df_sunburst.dropna(subset=['Field_of_Study', 'Starting_Salary', 'Entrepreneurship'], inplace=True)
 
-# Phân nhóm lương
-df_sunburst['Salary_Group'] = pd.qcut(df_sunburst['Starting_Salary'], q=3, labels=['Low', 'Medium', 'High'])
+# Phân nhóm lương và chuyển về kiểu string để tránh lỗi Plotly
+df_sunburst['Salary_Group'] = pd.qcut(
+    df_sunburst['Starting_Salary'], 
+    q=3, 
+    labels=['Low', 'Medium', 'High']
+).astype(str)
 
 # Tạo cột đếm (số lượng sinh viên theo nhóm)
 df_sunburst['Count'] = 1
