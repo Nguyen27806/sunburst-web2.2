@@ -13,10 +13,9 @@ st.sidebar.title("Filters")
 genders = sorted(df['Gender'].dropna().unique())
 selected_genders = st.sidebar.multiselect("Select Gender", genders, default=genders)
 
-# Filter data based on selected genders first
 df = df[df['Gender'].isin(selected_genders)]
 
-# Continue processing
+# Grouping
 df_grouped = (
     df.groupby(['Current_Job_Level', 'Age', 'Entrepreneurship'])
       .size()
@@ -26,7 +25,7 @@ df_grouped['Percentage'] = df_grouped.groupby(['Current_Job_Level', 'Age'])['Cou
 
 # Job level filter
 job_levels = sorted(df_grouped['Current_Job_Level'].unique())
-selected_level = st.sidebar.selectbox("Select Job Level (Bar/Area Charts)", job_levels)
+selected_level = st.sidebar.selectbox("Select Job Level (Bar/Line Charts)", job_levels)
 
 # Age filter
 min_age, max_age = int(df_grouped['Age'].min()), int(df_grouped['Age'].max())
@@ -54,7 +53,7 @@ else:
     font_size = font_size_by_count(len(ages))
     chart_width = max(400, min(1200, 50 * len(ages) + 100))
 
-    # Bar chart: Percentage
+    # ===== Bar chart: Percentage =====
     fig_bar = px.bar(
         filtered,
         x='Age',
@@ -91,8 +90,8 @@ else:
     )
     fig_bar.update_yaxes(tickformat=".0%", title="Percentage")
 
-    # Area chart: Count
-    fig_area = px.area(
+    # ===== Line chart: Count =====
+    fig_line = px.line(
         filtered,
         x='Age',
         y='Count',
@@ -105,18 +104,16 @@ else:
         width=chart_width,
         title=f"{selected_level} Level – Entrepreneurship by Age (Count)"
     )
-    fig_area.update_traces(line=dict(width=2), marker=dict(size=8))
-    fig_area.update_layout(
+    fig_line.update_traces(line=dict(width=2), marker=dict(size=8))
+    fig_line.update_layout(
         margin=dict(t=40, l=40, r=40, b=40),
         legend_title_text='Entrepreneurship',
         xaxis_tickangle=90
     )
-    fig_area.update_yaxes(title="Count")
+    fig_line.update_yaxes(title="Count")
 
     col1, col2 = st.columns(2)
     with col1:
         st.plotly_chart(fig_bar, use_container_width=True)
     with col2:
-        st.plotly_chart(fig_area, use_container_width=True)
-
-
+        st.plotly_chart(fig_line, use_container_width=True)
