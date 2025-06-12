@@ -2,50 +2,54 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# Sample data
-data = {
-    'Entrepreneurship': ['Yes', 'Yes', 'Yes', 'No', 'No', 'No'],
-    'Field_of_Study': ['Engineering', 'Business', 'Arts', 'Engineering', 'Business', 'Arts'],
-    'Salary_Group': ['High', 'Medium', 'Low', 'Medium', 'Low', 'Low'],
-    'Count': [100, 80, 30, 60, 50, 40]
-}
+# Load Excel file
+df = pd.read_excel("education_career_success.xlsx", sheet_name="education_career_success")
 
-df = pd.DataFrame(data)
+# Tạo Salary_Group theo phần ba lương
+df_sunburst = df[['Entrepreneurship', 'Field_of_Study', 'Starting_Salary']].copy()
+df_sunburst.dropna(subset=['Field_of_Study', 'Starting_Salary', 'Entrepreneurship'], inplace=True)
 
-st.title("Sunburst Chart: Filter by Field and Salary Group")
+# Phân nhóm lương
+df_sunburst['Salary_Group'] = pd.qcut(df_sunburst['Starting_Salary'], q=3, labels=['Low', 'Medium', 'High'])
 
-# Dropdown 1: Filter Field_of_Study
+# Tạo cột đếm (số lượng sinh viên theo nhóm)
+df_sunburst['Count'] = 1
+
+# UI
+st.title("🌟 Sunburst Chart: Filter by Field of Study and Salary Group")
+
+# Dropdown chọn ngành học
 selected_fields = st.multiselect(
-    "Select Field(s) of Study:",
-    options=df['Field_of_Study'].unique(),
-    default=df['Field_of_Study'].unique()
+    "🎓 Select Field(s) of Study:",
+    options=sorted(df_sunburst['Field_of_Study'].unique()),
+    default=sorted(df_sunburst['Field_of_Study'].unique())
 )
 
-# Dropdown 2: Filter Salary_Group
+# Dropdown chọn mức lương
 selected_salaries = st.multiselect(
-    "Select Salary Group(s):",
-    options=df['Salary_Group'].unique(),
-    default=df['Salary_Group'].unique()
+    "💰 Select Salary Group(s):",
+    options=['Low', 'Medium', 'High'],
+    default=['Low', 'Medium', 'High']
 )
 
-# Filter dataframe based on selection
-filtered_df = df[
-    df['Field_of_Study'].isin(selected_fields) &
-    df['Salary_Group'].isin(selected_salaries)
+# Lọc dữ liệu theo chọn lọc
+filtered_df = df_sunburst[
+    df_sunburst['Field_of_Study'].isin(selected_fields) &
+    df_sunburst['Salary_Group'].isin(selected_salaries)
 ]
 
-# Create sunburst chart
+# Tạo biểu đồ sunburst
 fig = px.sunburst(
     filtered_df,
     path=['Entrepreneurship', 'Field_of_Study', 'Salary_Group'],
-    values='Count'
+    values='Count',
+    color='Salary_Group',
+    color_discrete_map={'Low': '#FF6961', 'Medium': '#FFD700', 'High': '#77DD77'}
 )
 
 fig.update_traces(
     insidetextorientation='radial',
-    branchvalues="total",
-    textinfo='label+percent entry',
-    hovertemplate="<b>%{label}</b><br>Value: %{value}<br>"
+    hovertemplate="<b>%{label}</b><br>Count: %{value}<br>"
 )
 
 st.plotly_chart(fig, use_container_width=True)
