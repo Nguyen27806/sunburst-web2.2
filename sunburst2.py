@@ -11,43 +11,56 @@ def load_data():
 
 df = load_data()
 
-st.title("\U0001F4C8 Entrepreneurship and Job Offers by Age")
+st.title("📈 Entrepreneurship and Job Offers by Age")
 st.markdown("Analyze the relationship between entrepreneurship status, job level, and job offers across age groups.")
 
 st.sidebar.title("Filter Options")
 
-# Sidebar filters
+# Gender filter (with 'All')
 gender_options = ['All'] + sorted(df['Gender'].dropna().unique())
 selected_gender = st.sidebar.selectbox("Select Gender", gender_options)
 if selected_gender != 'All':
     df = df[df['Gender'] == selected_gender]
 
+# Job level filter
 job_levels = sorted(df['Current_Job_Level'].dropna().unique())
 selected_level = st.sidebar.selectbox("Select Job Level", job_levels)
 
+# Age filter
 min_age, max_age = int(df['Age'].min()), int(df['Age'].max())
 age_range = st.sidebar.slider("Select Age Range", min_value=min_age, max_value=max_age, value=(min_age, max_age))
 
+# Entrepreneurship filter (with 'All')
 entrepreneur_options = ['All', 'Yes', 'No']
 selected_status = st.sidebar.selectbox("Select Entrepreneurship Status", entrepreneur_options)
+
+# Convert to list for filtering
 selected_statuses = ['Yes', 'No'] if selected_status == 'All' else [selected_status]
 
+# Color mapping
 color_map = {'Yes': '#FFD700', 'No': '#004080'}
 
-# Grouped data for bar chart
+# Grouped data for percentage bar chart
 df_grouped = (
     df.groupby(['Current_Job_Level', 'Age', 'Entrepreneurship'])
-    .size().reset_index(name='Count')
+    .size()
+    .reset_index(name='Count')
 )
 df_grouped['Percentage'] = df_grouped.groupby(['Current_Job_Level', 'Age'])['Count'].transform(lambda x: x / x.sum())
 
-# Filtered for bar chart
-df_bar = df_grouped[(df_grouped['Current_Job_Level'] == selected_level) &
-                    (df_grouped['Age'].between(age_range[0], age_range[1]))]
+# Filter bar data
+df_bar = df_grouped[
+    (df_grouped['Current_Job_Level'] == selected_level) &
+    (df_grouped['Age'].between(age_range[0], age_range[1]))
+]
 if selected_status != 'All':
     df_bar = df_bar[df_bar['Entrepreneurship'] == selected_status]
 
-# Bar chart (stacked)
+# Filter only even ages for ticks
+even_ages = sorted(df_bar['Age'].unique())
+even_ages = [age for age in even_ages if age % 2 == 0]
+
+# Bar chart
 fig_bar = px.bar(
     df_bar,
     x='Age',
@@ -56,19 +69,50 @@ fig_bar = px.bar(
     barmode='stack',
     color_discrete_map=color_map,
     category_orders={'Entrepreneurship': ['No', 'Yes'], 'Age': sorted(df_bar['Age'].unique())},
-    height=500,
-    width=800,
+    labels={'Age': 'Age', 'Percentage': 'Percentage'},
+    height=450,
+    width=1000,
     title=f"Entrepreneurship Distribution by Age – {selected_level} Level"
 )
-# (Không dùng update_traces ở đây)
 
-# Line chart
-avg_offer_df = df[(df['Current_Job_Level'] == selected_level) &
-                  (df['Entrepreneurship'].isin(selected_statuses)) &
-                  (df['Age'].between(age_range[0], age_range[1]))]
-df_avg_offers = avg_offer_df.groupby(['Age', 'Entrepreneurship'])['Job_Offers'].mean().reset_index()
+for i, row in df_bar.iterrows():
+    if row['Entrepreneurship'] == 'Yes':
+        y_pos = row['Percentage'] / 2
+    else:
+        same_age_yes = df_bar[(df_bar['Age'] == row['Age']) & (df_bar['Entrepreneurship'] == 'Yes')]
+        yes_pct = same_age_yes['Percentage'].values[0] if not same_age_yes.empty else 0
+        y_pos = row['Percentage'] / 2 + yes_pct
+    fig_bar.add_annotation(
+        x=row['Age'],
+        y=y_pos,
+        text=f"{row['Percentage']:.0%}",
+        showarrow=False,
+        font=dict(color="white", size=10),
+        xanchor="center",
+        yanchor="middle"
+    )
+
+fig_bar.update_layout(
+    margin=dict(t=40, l=40, r=40, b=40),
+    legend_title_text='Entrepreneurship',
+    xaxis_tickangle=90,
+    bargap=0.1,
+    xaxis=dict(tickvals=even_ages),
+    yaxis=dict(title="Percentage", range=[0, 1], tickformat=".0%")
+)
+
+# Line chart: Average Job Offers
+df_avg_offers = (
+    df[(df['Current_Job_Level'] == selected_level) &
+       (df['Entrepreneurship'].isin(selected_statuses)) &
+       (df['Age'].between(age_range[0], age_range[1]))]
+    .groupby(['Age', 'Entrepreneurship'])['Job_Offers']
+    .mean()
+    .reset_index()
+)
 
 fig_line = go.Figure()
+
 for status in selected_statuses:
     df_line = df_avg_offers[df_avg_offers['Entrepreneurship'] == status]
     fig_line.add_trace(go.Scatter(
@@ -76,22 +120,36 @@ for status in selected_statuses:
         y=df_line['Job_Offers'],
         mode='lines+markers',
         name=status,
-        line=dict(color=color_map[status], width=2),
-        hovertemplate='Age: %{x}<br>Avg Job Offers: %{y:.2f}<extra></extra>',
-        legendgroup="Entrepreneurship"
+        marker=dict(size=6),
+        line=dict(width=2, color=color_map[status]),
+        hovertemplate='Age: %{x}<br>Avg Job Offers: %{y:.2f}<extra></extra>'
     ))
 
 fig_line.update_layout(
-    height=500,
-    width=800,
-    title="Average Job Offers by Age",
-    xaxis_title="Age",
-    yaxis_title="Avg Job Offers",
-    hovermode="x unified",
-    showlegend=True,
-    legend_title_text="Entrepreneurship"
+    margin=dict(t=40, l=40, r=40, b=40),
+    legend_title_text='Entrepreneurship',
+    xaxis_tickangle=90,
+    hovermode="x",
+    xaxis=dict(
+        showspikes=True,
+        spikemode='across',
+        spikesnap='cursor',
+        spikethickness=1.2,
+        spikedash='dot',
+        tickvals=even_ages
+    ),
+    yaxis=dict(
+        title="Average Job Offers",
+        showspikes=True,
+        spikemode='across',
+        spikesnap='cursor',
+        spikethickness=1.2,
+        spikedash='dot'
+    ),
+    legend=dict(orientation='h', yanchor='bottom', y=-0.3, xanchor='center', x=0.5)
 )
 
+# Display charts
 col1, col2 = st.columns(2)
 with col1:
     st.plotly_chart(fig_bar, use_container_width=True)
