@@ -17,21 +17,17 @@ st.markdown("Analyze the relationship between entrepreneurship status, job level
 # ==== Sidebar ====
 st.sidebar.title("Filter Options")
 
-# Gender filter
 gender_options = ['All'] + sorted(df['Gender'].dropna().unique())
 selected_gender = st.sidebar.selectbox("Select Gender", gender_options)
 if selected_gender != 'All':
     df = df[df['Gender'] == selected_gender]
 
-# Job level filter
 job_levels = sorted(df['Current_Job_Level'].dropna().unique())
 selected_level = st.sidebar.selectbox("Select Job Level", job_levels)
 
-# Age filter
 min_age, max_age = int(df['Age'].min()), int(df['Age'].max())
 age_range = st.sidebar.slider("Select Age Range", min_value=min_age, max_value=max_age, value=(min_age, max_age))
 
-# Entrepreneurship filter
 entrepreneur_options = ['All', 'Yes', 'No']
 selected_status = st.sidebar.selectbox("Select Entrepreneurship Status", entrepreneur_options)
 selected_statuses = ['Yes', 'No'] if selected_status == 'All' else [selected_status]
@@ -69,25 +65,28 @@ fig_bar = px.bar(
     title=f"Entrepreneurship Distribution by Age – {selected_level} Level"
 )
 
-# Add % annotations
+# Add annotations
 for status in ['No', 'Yes']:
     for _, row in df_bar[df_bar['Entrepreneurship'] == status].iterrows():
         if row['Percentage'] > 0:
+            y_pos = row['Percentage'] * 0.95 if status == 'Yes' else row['Percentage'] / 2
             fig_bar.add_annotation(
                 x=row['Age'],
-                y=row['Percentage'] / 2 if status == 'No' else row['Percentage'] * 0.8,
+                y=y_pos,
                 text=f"{row['Percentage']:.0%}",
                 showarrow=False,
-                font=dict(color="white", size=12),
+                font=dict(color="white", size=10),
                 xanchor="center"
             )
 
+# Update bar layout
 fig_bar.update_layout(
     margin=dict(t=40, l=40, r=40, b=40),
     legend_title_text='Entrepreneurship',
     bargap=0.1,
     xaxis=dict(
-        tickmode='linear',
+        tickmode='array',
+        tickvals=[x for x in sorted_ages if x % 2 == 0],
         tickangle=0,
         title="Age"
     ),
@@ -97,7 +96,7 @@ fig_bar.update_layout(
     )
 )
 
-# ==== Line chart: Job Offers ====
+# ==== Line chart: Avg Job Offers ====
 df_avg_offers = (
     df[(df['Current_Job_Level'] == selected_level) &
        (df['Entrepreneurship'].isin(selected_statuses)) &
@@ -122,18 +121,19 @@ for status in selected_statuses:
         line_color=color_map[status]
     ))
 
-# ==== Line chart layout ====
+# Update line layout
 fig_line.update_layout(
     title="Average Job Offers by Age",
     margin=dict(t=40, l=40, r=40, b=40),
     legend_title_text='Entrepreneurship',
     xaxis=dict(
         title="Age",
-        tickmode='linear',
+        tickmode='array',
+        tickvals=[x for x in df_avg_offers['Age'].unique() if x % 2 == 0],
         tickangle=0,
         showspikes=True,
-        spikesnap='cursor',
         spikemode='across',
+        spikesnap='data',  # 👈 only show vertical line at real data points
         spikecolor='gray',
         spikethickness=1.2,
         spikedash='dot'
