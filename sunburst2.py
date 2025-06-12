@@ -1,69 +1,122 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.express as px
 
-# Thiết lập giao diện
-st.set_page_config(page_title="Phân tích Hiệu suất & Thăng tiến", layout="wide")
-st.title("📈 Dashboard: Hiệu suất cá nhân và Thăng tiến nghề nghiệp")
+# Load and preprocess data
+df = pd.read_excel("education_career_success.xlsx", sheet_name=0)
+df = df[df['Entrepreneurship'].isin(['Yes', 'No'])]
 
-# Tải dữ liệu
-@st.cache_data
-def load_data():
-    df = pd.read_excel("education_career_success.xlsx")
-    return df
+# Sidebar filters
+st.sidebar.title("Filters")
 
-df = load_data()
+# Gender filter
+genders = sorted(df['Gender'].dropna().unique())
+selected_genders = st.sidebar.multiselect("Select Gender", genders, default=genders)
 
-# Sidebar: bộ lọc liên kết
-st.sidebar.header("🔎 Bộ lọc dữ liệu")
+# Filter data based on selected genders first
+df = df[df['Gender'].isin(selected_genders)]
 
-# Lọc giới tính
-genders = df["Gender"].dropna().unique().tolist()
-selected_gender = st.sidebar.selectbox("Chọn giới tính:", ["Tất cả"] + genders)
-if selected_gender != "Tất cả":
-    df = df[df["Gender"] == selected_gender]
+# Continue processing
+df_grouped = (
+    df.groupby(['Current_Job_Level', 'Age', 'Entrepreneurship'])
+      .size()
+      .reset_index(name='Count')
+)
+df_grouped['Percentage'] = df_grouped.groupby(['Current_Job_Level', 'Age'])['Count'].transform(lambda x: x / x.sum())
 
-# Lọc ngành học
-fields = df["Field_of_Study"].dropna().unique().tolist()
-selected_fields = st.sidebar.multiselect("Chọn ngành học:", fields, default=fields)
-df = df[df["Field_of_Study"].isin(selected_fields)]
+# Job level filter
+job_levels = sorted(df_grouped['Current_Job_Level'].unique())
+selected_level = st.sidebar.selectbox("Select Job Level (Bar/Area Charts)", job_levels)
 
-# Lọc theo GPA
-min_gpa, max_gpa = df["University_GPA"].min(), df["University_GPA"].max()
-gpa_range = st.sidebar.slider("Khoảng điểm GPA đại học:", float(min_gpa), float(max_gpa),
-                              (float(min_gpa), float(max_gpa)))
-df = df[(df["University_GPA"] >= gpa_range[0]) & (df["University_GPA"] <= gpa_range[1])]
+# Age filter
+min_age, max_age = int(df_grouped['Age'].min()), int(df_grouped['Age'].max())
+age_range = st.sidebar.slider("Select Age Range", min_value=min_age, max_value=max_age, value=(min_age, max_age))
 
-if df.empty:
-    st.warning("⚠️ Không có dữ liệu phù hợp với bộ lọc.")
-    st.stop()
+# Entrepreneurship filter
+selected_statuses = st.sidebar.multiselect("Select Entrepreneurship Status", ['Yes', 'No'], default=['Yes', 'No'])
 
-# Biểu đồ 1: Violin plot - Years_to_Promotion theo ngành
-st.subheader("🎻 Biểu đồ 1: Phân phối số năm để được thăng chức theo Ngành học")
+# Final filtered dataset
+filtered = df_grouped[
+    (df_grouped['Current_Job_Level'] == selected_level) &
+    (df_grouped['Entrepreneurship'].isin(selected_statuses)) &
+    (df_grouped['Age'].between(age_range[0], age_range[1]))
+]
 
-fig1, ax1 = plt.subplots(figsize=(8, 4))
-sns.violinplot(data=df, x="Field_of_Study", y="Years_to_Promotion", ax=ax1, inner="quart")
-ax1.set_ylabel("Số năm thăng chức")
-ax1.set_xlabel("Ngành học")
-ax1.set_xticklabels(ax1.get_xticklabels(), rotation=45)
-st.pyplot(fig1)
+def font_size_by_count(n):
+    return {1: 20, 2: 18, 3: 16, 4: 14, 5: 12, 6: 11, 7: 10, 8: 9, 9: 8, 10: 7}.get(n, 6)
 
-# Biểu đồ 2: Lineplot - Career Satisfaction theo Soft Skills Score
-st.subheader("📈 Biểu đồ 2: Mức độ hài lòng nghề nghiệp theo điểm Kỹ năng mềm")
+color_map = {'Yes': '#FFD700', 'No': '#004080'}
 
-avg_satisfaction = df.groupby("Soft_Skills_Score")["Career_Satisfaction"].mean().reset_index()
-fig2, ax2 = plt.subplots(figsize=(6, 4))
-sns.lineplot(data=avg_satisfaction, x="Soft_Skills_Score", y="Career_Satisfaction", marker="o", ax=ax2)
-ax2.set_xlabel("Soft Skills Score")
-ax2.set_ylabel("Career Satisfaction (trung bình)")
-st.pyplot(fig2)
+if filtered.empty:
+    st.write(f"### No data available for {selected_level} level.")
+else:
+    ages = sorted(filtered['Age'].unique())
+    font_size = font_size_by_count(len(ages))
+    chart_width = max(400, min(1200, 50 * len(ages) + 100))
 
-# Biểu đồ 3: Boxplot - Starting Salary theo Job Level
-st.subheader("💼 Biểu đồ 3: Lương khởi điểm theo cấp bậc công việc")
+    # Bar chart: Percentage
+    fig_bar = px.bar(
+        filtered,
+        x='Age',
+        y='Percentage',
+        color='Entrepreneurship',
+        barmode='stack',
+        color_discrete_map=color_map,
+        category_orders={'Entrepreneurship': ['No', 'Yes'], 'Age': ages},
+        labels={'Age': 'Age', 'Percentage': 'Percentage'},
+        height=400,
+        width=chart_width,
+        title=f"{selected_level} Level – Entrepreneurship by Age (%)"
+    )
 
-fig3, ax3 = plt.subplots(figsize=(6, 4))
-sns.boxplot(data=df, x="Current_Job_Level", y="Starting_Salary", ax=ax3)
-ax3.set_xlabel("Cấp bậc hiện tại")
-ax3.set_ylabel("Lương khởi điểm (VND)")
-st.pyplot(fig3)
+    for status in ['No', 'Yes']:
+        for _, row in filtered[filtered['Entrepreneurship'] == status].iterrows():
+            if row['Percentage'] > 0:
+                y_pos = 0.2 if status == 'No' else 0.9
+                fig_bar.add_annotation(
+                    x=row['Age'],
+                    y=y_pos,
+                    text=f"{row['Percentage']:.0%}",
+                    showarrow=False,
+                    font=dict(color="white", size=font_size),
+                    xanchor="center",
+                    yanchor="middle"
+                )
+
+    fig_bar.update_layout(
+        margin=dict(t=40, l=40, r=40, b=40),
+        legend_title_text='Entrepreneurship',
+        xaxis_tickangle=90,
+        bargap=0.1
+    )
+    fig_bar.update_yaxes(tickformat=".0%", title="Percentage")
+
+    # Area chart: Count
+    fig_area = px.area(
+        filtered,
+        x='Age',
+        y='Count',
+        color='Entrepreneurship',
+        markers=True,
+        color_discrete_map=color_map,
+        category_orders={'Entrepreneurship': ['No', 'Yes'], 'Age': ages},
+        labels={'Age': 'Age', 'Count': 'Count'},
+        height=400,
+        width=chart_width,
+        title=f"{selected_level} Level – Entrepreneurship by Age (Count)"
+    )
+    fig_area.update_traces(line=dict(width=2), marker=dict(size=8))
+    fig_area.update_layout(
+        margin=dict(t=40, l=40, r=40, b=40),
+        legend_title_text='Entrepreneurship',
+        xaxis_tickangle=90
+    )
+    fig_area.update_yaxes(title="Count")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(fig_bar, use_container_width=True)
+    with col2:
+        st.plotly_chart(fig_area, use_container_width=True)
+
+
