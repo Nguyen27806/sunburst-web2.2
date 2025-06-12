@@ -75,22 +75,22 @@ fig_bar = px.bar(
     title=f"Entrepreneurship Distribution by Age – {selected_level} Level"
 )
 
-for i, row in df_bar.iterrows():
-    if row['Entrepreneurship'] == 'Yes':
-        y_pos = row['Percentage'] / 2
-    else:
-        same_age_yes = df_bar[(df_bar['Age'] == row['Age']) & (df_bar['Entrepreneurship'] == 'Yes')]
-        yes_pct = same_age_yes['Percentage'].values[0] if not same_age_yes.empty else 0
-        y_pos = row['Percentage'] / 2 + yes_pct
-    fig_bar.add_annotation(
-        x=row['Age'],
-        y=y_pos,
-        text=f"{row['Percentage']:.0%}",
-        showarrow=False,
-        font=dict(color="white", size=10),
-        xanchor="center",
-        yanchor="middle"
-    )
+for age in df_bar['Age'].unique():
+    rows = df_bar[df_bar['Age'] == age]
+    for _, row in rows.iterrows():
+        if row['Entrepreneurship'] == 'Yes':
+            y_pos = rows[rows['Entrepreneurship'] == 'No']['Percentage'].sum() + row['Percentage'] / 2
+        else:
+            y_pos = row['Percentage'] / 2
+        fig_bar.add_annotation(
+            x=row['Age'],
+            y=y_pos,
+            text=f"{row['Percentage']:.0%}",
+            showarrow=False,
+            font=dict(color="white", size=10),
+            xanchor="center",
+            yanchor="middle"
+        )
 
 fig_bar.update_layout(
     margin=dict(t=40, l=40, r=40, b=40),
