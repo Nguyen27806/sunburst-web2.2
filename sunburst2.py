@@ -94,7 +94,8 @@ for age in df_bar['Age'].unique():
 
 fig_bar.update_traces(
     hovertemplate="Entrepreneurship=%{customdata[0]}<br>Age=%{x}<br>Percentage=%{y:.0%}<extra></extra>",
-    customdata=df_bar[['Entrepreneurship']].values
+    customdata=df_bar[['Entrepreneurship']].values,
+    hoverinfo="skip"
 )
 
 fig_bar.update_layout(
