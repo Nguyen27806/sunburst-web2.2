@@ -71,7 +71,7 @@ fig_bar = px.bar(
     category_orders={'Entrepreneurship': ['No', 'Yes'], 'Age': sorted(df_bar['Age'].unique())},
     labels={'Age': 'Age', 'Percentage': 'Percentage'},
     height=450,
-    width=1000,
+    width=1100,
     title=f"Entrepreneurship Distribution by Age – {selected_level} Level"
 )
 
@@ -95,7 +95,7 @@ for i, row in df_bar.iterrows():
 fig_bar.update_layout(
     margin=dict(t=40, l=40, r=40, b=40),
     legend_title_text='Entrepreneurship',
-    xaxis_tickangle=90,
+    xaxis_tickangle=0,
     bargap=0.1,
     xaxis=dict(tickvals=even_ages),
     yaxis=dict(title="Percentage", range=[0, 1], tickformat=".0%")
@@ -128,8 +128,8 @@ for status in selected_statuses:
 fig_line.update_layout(
     margin=dict(t=40, l=40, r=40, b=40),
     legend_title_text='Entrepreneurship',
-    xaxis_tickangle=90,
-    hovermode="x",
+    xaxis_tickangle=0,
+    hovermode="x unified",
     xaxis=dict(
         showspikes=True,
         spikemode='across',
