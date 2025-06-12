@@ -71,7 +71,7 @@ fig_bar = px.bar(
     category_orders={'Entrepreneurship': ['No', 'Yes'], 'Age': sorted(df_bar['Age'].unique())},
     labels={'Age': 'Age', 'Percentage': 'Percentage'},
     height=450,
-    width=1250,
+    width=1350,
     title=f"Entrepreneurship Distribution by Age – {selected_level} Level"
 )
 
