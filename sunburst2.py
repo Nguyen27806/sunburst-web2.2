@@ -61,27 +61,24 @@ even_ages = sorted(df_bar['Age'].unique())
 even_ages = [age for age in even_ages if age % 2 == 0]
 
 # Bar chart
-fig_bar = px.bar(
-    df_bar,
-    x='Age',
-    y='Percentage',
-    color='Entrepreneurship',
-    barmode='stack',
-    color_discrete_map=color_map,
-    category_orders={'Entrepreneurship': ['No', 'Yes'], 'Age': sorted(df_bar['Age'].unique())},
-    labels={'Age': 'Age', 'Percentage': 'Percentage'},
-    height=450,
-    width=1250,
-    title=f"Entrepreneurship Distribution by Age – {selected_level} Level"
-)
+fig_bar = go.Figure()
+for status in ['No', 'Yes']:
+    subset = df_bar[df_bar['Entrepreneurship'] == status]
+    fig_bar.add_trace(go.Bar(
+        x=subset['Age'],
+        y=subset['Percentage'],
+        name=status,
+        marker_color=color_map[status],
+        hovertemplate='%{y:.0%}<extra></extra>'
+    ))
 
+# Add percentage annotations
 for age in df_bar['Age'].unique():
     rows = df_bar[df_bar['Age'] == age]
+    total = 0
     for _, row in rows.iterrows():
-        if row['Entrepreneurship'] == 'Yes':
-            y_pos = rows[rows['Entrepreneurship'] == 'No']['Percentage'].sum() + row['Percentage'] / 2
-        else:
-            y_pos = row['Percentage'] / 2
+        y_pos = total + row['Percentage'] / 2
+        total += row['Percentage']
         fig_bar.add_annotation(
             x=row['Age'],
             y=y_pos,
@@ -93,14 +90,16 @@ for age in df_bar['Age'].unique():
         )
 
 fig_bar.update_layout(
-    margin=dict(t=40, l=40, r=40, b=40),
-    legend_title_text='Entrepreneurship',
+    barmode='stack',
+    height=450,
+    width=1350,
+    title=f"Entrepreneurship Distribution by Age – {selected_level} Level",
     xaxis_tickangle=0,
     bargap=0.1,
-    xaxis=dict(tickvals=even_ages),
+    xaxis=dict(title="Age", tickvals=even_ages),
     yaxis=dict(title="Percentage", range=[0, 1], tickformat=".0%"),
     hovermode="x unified",
-    legend=dict(orientation='h', yanchor='bottom', y=-0.3, xanchor='center', x=0.5)
+    legend=dict(orientation='h', yanchor='bottom', y=-0.3, xanchor='center', x=0.5, title="Entrepreneurship")
 )
 
 # Line chart: Average Job Offers
@@ -114,7 +113,6 @@ df_avg_offers = (
 )
 
 fig_line = go.Figure()
-
 for status in selected_statuses:
     df_line = df_avg_offers[df_avg_offers['Entrepreneurship'] == status]
     fig_line.add_trace(go.Scatter(
@@ -129,11 +127,11 @@ for status in selected_statuses:
 
 fig_line.update_layout(
     margin=dict(t=40, l=40, r=40, b=40),
-    legend_title_text='Entrepreneurship',
     xaxis_tickangle=0,
     hovermode="x unified",
-    width=1250,
+    width=1350,
     xaxis=dict(
+        title="Age",
         showspikes=True,
         spikemode='across',
         spikesnap='cursor',
@@ -149,12 +147,9 @@ fig_line.update_layout(
         spikethickness=1.2,
         spikedash='dot'
     ),
-    legend=dict(orientation='h', yanchor='bottom', y=-0.3, xanchor='center', x=0.5)
+    legend=dict(orientation='h', yanchor='bottom', y=-0.3, xanchor='center', x=0.5, title="Entrepreneurship")
 )
 
 # Display charts
-col1, col2 = st.columns(2)
-with col1:
-    st.plotly_chart(fig_bar, use_container_width=True)
-with col2:
-    st.plotly_chart(fig_line, use_container_width=True)
+st.plotly_chart(fig_bar, use_container_width=True)
+st.plotly_chart(fig_line, use_container_width=True)
