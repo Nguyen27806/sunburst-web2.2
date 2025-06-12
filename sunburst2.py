@@ -3,11 +3,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# --- Cài đặt Streamlit
-st.set_page_config(page_title="Liên kết 3 Biểu đồ", layout="wide")
-st.title("📈 Dashboard Phân tích Sinh viên & Sự nghiệp (Liên kết 3 biểu đồ)")
+# Thiết lập giao diện
+st.set_page_config(page_title="Phân tích Hiệu suất & Thăng tiến", layout="wide")
+st.title("📈 Dashboard: Hiệu suất cá nhân và Thăng tiến nghề nghiệp")
 
-# --- Tải dữ liệu
+# Tải dữ liệu
 @st.cache_data
 def load_data():
     df = pd.read_excel("education_career_success.xlsx")
@@ -15,55 +15,55 @@ def load_data():
 
 df = load_data()
 
-# --- Sidebar: Bộ lọc dùng chung ---
-st.sidebar.header("🎛️ Bộ lọc dữ liệu")
+# Sidebar: bộ lọc liên kết
+st.sidebar.header("🔎 Bộ lọc dữ liệu")
 
-# Giới tính
-gender_options = df['Gender'].dropna().unique().tolist()
-selected_gender = st.sidebar.selectbox("Chọn giới tính:", ["Tất cả"] + gender_options)
+# Lọc giới tính
+genders = df["Gender"].dropna().unique().tolist()
+selected_gender = st.sidebar.selectbox("Chọn giới tính:", ["Tất cả"] + genders)
 if selected_gender != "Tất cả":
     df = df[df["Gender"] == selected_gender]
 
-# Ngành học
-fields = df['Field_of_Study'].dropna().unique().tolist()
+# Lọc ngành học
+fields = df["Field_of_Study"].dropna().unique().tolist()
 selected_fields = st.sidebar.multiselect("Chọn ngành học:", fields, default=fields)
 df = df[df["Field_of_Study"].isin(selected_fields)]
 
-# GPA filter
+# Lọc theo GPA
 min_gpa, max_gpa = df["University_GPA"].min(), df["University_GPA"].max()
-gpa_range = st.sidebar.slider("Chọn khoảng GPA đại học:", float(min_gpa), float(max_gpa),
+gpa_range = st.sidebar.slider("Khoảng điểm GPA đại học:", float(min_gpa), float(max_gpa),
                               (float(min_gpa), float(max_gpa)))
 df = df[(df["University_GPA"] >= gpa_range[0]) & (df["University_GPA"] <= gpa_range[1])]
 
-# Nếu không còn dữ liệu
 if df.empty:
-    st.warning("⚠️ Không có dữ liệu phù hợp.")
+    st.warning("⚠️ Không có dữ liệu phù hợp với bộ lọc.")
     st.stop()
 
-# --- Plot 1: Pie chart ngành học ---
-st.subheader("📊 Biểu đồ 1: Tỷ lệ sinh viên theo Ngành học")
+# Biểu đồ 1: Violin plot - Years_to_Promotion theo ngành
+st.subheader("🎻 Biểu đồ 1: Phân phối số năm để được thăng chức theo Ngành học")
 
-field_counts = df["Field_of_Study"].value_counts()
-fig1, ax1 = plt.subplots()
-ax1.pie(field_counts, labels=field_counts.index, autopct="%1.1f%%", startangle=90)
-ax1.axis("equal")
+fig1, ax1 = plt.subplots(figsize=(8, 4))
+sns.violinplot(data=df, x="Field_of_Study", y="Years_to_Promotion", ax=ax1, inner="quart")
+ax1.set_ylabel("Số năm thăng chức")
+ax1.set_xlabel("Ngành học")
+ax1.set_xticklabels(ax1.get_xticklabels(), rotation=45)
 st.pyplot(fig1)
 
-# --- Plot 2: Histogram điểm kỹ năng mềm ---
-st.subheader("🧠 Biểu đồ 2: Phân phối điểm Kỹ năng mềm")
+# Biểu đồ 2: Lineplot - Career Satisfaction theo Soft Skills Score
+st.subheader("📈 Biểu đồ 2: Mức độ hài lòng nghề nghiệp theo điểm Kỹ năng mềm")
 
-fig2, ax2 = plt.subplots()
-sns.histplot(df["Soft_Skills_Score"], bins=10, kde=True, ax=ax2, color="skyblue")
+avg_satisfaction = df.groupby("Soft_Skills_Score")["Career_Satisfaction"].mean().reset_index()
+fig2, ax2 = plt.subplots(figsize=(6, 4))
+sns.lineplot(data=avg_satisfaction, x="Soft_Skills_Score", y="Career_Satisfaction", marker="o", ax=ax2)
 ax2.set_xlabel("Soft Skills Score")
-ax2.set_ylabel("Số lượng sinh viên")
+ax2.set_ylabel("Career Satisfaction (trung bình)")
 st.pyplot(fig2)
 
-# --- Plot 3: Scatter Networking Score vs Job Offers ---
-st.subheader("🌐 Biểu đồ 3: Mối quan hệ Networking Score và Số Job Offers")
+# Biểu đồ 3: Boxplot - Starting Salary theo Job Level
+st.subheader("💼 Biểu đồ 3: Lương khởi điểm theo cấp bậc công việc")
 
-fig3, ax3 = plt.subplots()
-sns.scatterplot(data=df, x="Networking_Score", y="Job_Offers", hue="Field_of_Study", ax=ax3)
-ax3.set_xlabel("Networking Score")
-ax3.set_ylabel("Số lời mời làm việc")
-ax3.set_title("Liên hệ giữa Networking và Cơ hội nghề nghiệp")
+fig3, ax3 = plt.subplots(figsize=(6, 4))
+sns.boxplot(data=df, x="Current_Job_Level", y="Starting_Salary", ax=ax3)
+ax3.set_xlabel("Cấp bậc hiện tại")
+ax3.set_ylabel("Lương khởi điểm (VND)")
 st.pyplot(fig3)
