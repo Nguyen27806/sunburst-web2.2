@@ -75,19 +75,7 @@ fig_bar = px.bar(
     title=f"Entrepreneurship Distribution by Age – {selected_level} Level"
 )
 
-for age in df_bar['Age'].unique():
-    rows = df_bar[df_bar['Age'] == age]
-    for _, row in rows.iterrows():
-        if row['Entrepreneurship'] == 'Yes':
-            y_pos = rows[rows['Entrepreneurship'] == 'No']['Percentage'].sum() + row['Percentage'] / 2
-        else:
-            y_pos = row['Percentage'] / 2
-        fig_bar.add_annotation(
-            x=row['Age'],
-            y=y_pos,
-            text=f"{row['Percentage']:.0%}",
-            showarrow=False,
-            font=dict(color="white", size=9),
+,
             xanchor="center",
             yanchor="middle"
         )
