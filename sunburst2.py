@@ -1,59 +1,51 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-# Load Excel file
-df = pd.read_excel("education_career_success.xlsx", sheet_name="education_career_success")
+st.title("📊 Phân tích Giáo dục và Thành công Nghề nghiệp")
 
-# Tạo Salary_Group theo phần ba lương
-df_sunburst = df[['Entrepreneurship', 'Field_of_Study', 'Starting_Salary']].copy()
-df_sunburst.dropna(subset=['Field_of_Study', 'Starting_Salary', 'Entrepreneurship'], inplace=True)
+# Tải dữ liệu
+@st.cache_data
+def load_data():
+    df = pd.read_excel("education_career_success.xlsx")
+    return df
 
-# Phân nhóm lương và chuyển về kiểu string để tránh lỗi Plotly
-df_sunburst['Salary_Group'] = pd.qcut(
-    df_sunburst['Starting_Salary'], 
-    q=3, 
-    labels=['Low', 'Medium', 'High']
-).astype(str)
+df = load_data()
 
-# Tạo cột đếm (số lượng sinh viên theo nhóm)
-df_sunburst['Count'] = 1
+# Biểu đồ 1: Scatter plot SAT vs University GPA, màu theo ngành học
+st.header("Biểu đồ 1: SAT Score vs University GPA theo Ngành học")
 
-# UI
-st.title("🌟 Sunburst Chart: Filter by Field of Study and Salary Group")
+fig1, ax1 = plt.subplots()
+sns.scatterplot(data=df, x="SAT_Score", y="University_GPA", hue="Field_of_Study", ax=ax1)
+ax1.set_xlabel("SAT Score")
+ax1.set_ylabel("University GPA")
+st.pyplot(fig1)
 
-# Dropdown chọn ngành học
-selected_fields = st.multiselect(
-    "🎓 Select Field(s) of Study:",
-    options=sorted(df_sunburst['Field_of_Study'].unique()),
-    default=sorted(df_sunburst['Field_of_Study'].unique())
-)
+# Biểu đồ 2: Biểu đồ cột Starting Salary trung bình theo ngành và giới tính
+st.header("Biểu đồ 2: Mức lương khởi điểm trung bình theo Ngành và Giới tính")
 
-# Dropdown chọn mức lương
-selected_salaries = st.multiselect(
-    "💰 Select Salary Group(s):",
-    options=['Low', 'Medium', 'High'],
-    default=['Low', 'Medium', 'High']
-)
+salary_group = df.groupby(['Field_of_Study', 'Gender'])['Starting_Salary'].mean().reset_index()
+fig2, ax2 = plt.subplots(figsize=(10, 6))
+sns.barplot(data=salary_group, x="Field_of_Study", y="Starting_Salary", hue="Gender", ax=ax2)
+ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45)
+st.pyplot(fig2)
 
-# Lọc dữ liệu theo chọn lọc
-filtered_df = df_sunburst[
-    df_sunburst['Field_of_Study'].isin(selected_fields) &
-    df_sunburst['Salary_Group'].isin(selected_salaries)
-]
+# Biểu đồ 3: Boxplot số Job Offers theo University Ranking nhóm và số Internship
+st.header("Biểu đồ 3: Số lời mời làm việc theo Thứ hạng Trường và Số lần Thực tập")
 
-# Tạo biểu đồ sunburst
-fig = px.sunburst(
-    filtered_df,
-    path=['Entrepreneurship', 'Field_of_Study', 'Salary_Group'],
-    values='Count',
-    color='Salary_Group',
-    color_discrete_map={'Low': '#FF6961', 'Medium': '#FFD700', 'High': '#77DD77'}
-)
+# Nhóm University Ranking
+df['Ranking_Group'] = pd.cut(df['University_Ranking'],
+                             bins=[0, 200, 500, 1000],
+                             labels=['Top 200', '201–500', '501–1000'])
 
-fig.update_traces(
-    insidetextorientation='radial',
-    hovertemplate="<b>%{label}</b><br>Count: %{value}<br>"
-)
+# Nhóm số thực tập
+df['Internship_Level'] = pd.cut(df['Internships_Completed'],
+                                bins=[-1, 1, 3, 10],
+                                labels=['Ít', 'Trung bình', 'Nhiều'])
 
-st.plotly_chart(fig, use_container_width=True)
+fig3, ax3 = plt.subplots(figsize=(8, 6))
+sns.boxplot(data=df, x='Ranking_Group', y='Job_Offers', hue='Internship_Level', ax=ax3)
+ax3.set_xlabel("Nhóm Thứ hạng Đại học")
+ax3.set_ylabel("Số lời mời làm việc")
+st.pyplot(fig3)
