@@ -121,16 +121,16 @@ df_avg_offers = (
 
 fig_line = go.Figure()
 
-for status in selected_statuses:
-    df_line = df_avg_offers[df_avg_offers['Entrepreneurship'] == status]
+for status in selected_statuses:  # ['Yes', 'No'] hoặc ['Yes'] hoặc ['No']
+    data_status = df_avg_offers[df_avg_offers["Entrepreneurship"] == status]
     fig_line.add_trace(go.Scatter(
-        x=df_line['Age'],
-        y=df_line['Job_Offers'],
-        mode='lines+markers',
+        x=data_status["Age"],
+        y=data_status["Job_Offers"],
+        mode="lines+markers",
         name=status,
+        line=dict(color=color_map[status], width=2),
         marker=dict(size=6),
-        line=dict(width=2, color=color_map[status]),
-        hovertemplate='Age: %{x}<br>Avg Job Offers: %{y:.2f}<extra></extra>'
+        hovertemplate="%{y:.2f}"  # chỉ hiện giá trị, tên và màu line sẽ auto hiện
     ))
 
 fig_line.update_layout(
