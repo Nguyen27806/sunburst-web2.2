@@ -11,7 +11,7 @@ def load_data():
 
 df = load_data()
 
-st.title("📈 Entrepreneurship and Job Offers by Age")
+st.title("\U0001F4C8 Entrepreneurship and Job Offers by Age")
 st.markdown("Analyze the relationship between entrepreneurship status, job level, and job offers across age groups.")
 
 st.sidebar.title("Filter Options")
@@ -87,7 +87,7 @@ for age in df_bar['Age'].unique():
             y=y_pos,
             text=f"{row['Percentage']:.0%}",
             showarrow=False,
-            font=dict(color="white", size=10),
+            font=dict(color="white", size=9),
             xanchor="center",
             yanchor="middle"
         )
