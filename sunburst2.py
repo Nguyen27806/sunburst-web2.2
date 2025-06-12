@@ -105,7 +105,7 @@ fig_bar.update_layout(
     bargap=0.1,
     xaxis=dict(tickvals=even_ages),
     yaxis=dict(title="Percentage", range=[0, 1], tickformat=".0%"),
-    hovermode="x unified",
+    
     legend=dict(orientation='h', yanchor='bottom', y=-0.3, xanchor='center', x=0.5)
 )
 
