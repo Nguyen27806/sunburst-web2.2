@@ -71,7 +71,7 @@ fig_bar = px.bar(
     category_orders={'Entrepreneurship': ['No', 'Yes'], 'Age': sorted(df_bar['Age'].unique())},
     labels={'Age': 'Age', 'Percentage': 'Percentage'},
     height=450,
-    width=1350,
+    width=1500,
     title=f"Entrepreneurship Distribution by Age – {selected_level} Level"
 )
 
@@ -130,7 +130,7 @@ fig_line.update_layout(
     legend_title_text='Entrepreneurship',
     xaxis_tickangle=0,
     hovermode="x unified",
-    width=1250,
+    width=1500,
     xaxis=dict(
         showspikes=True,
         spikemode='across',
