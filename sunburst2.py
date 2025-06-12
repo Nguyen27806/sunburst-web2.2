@@ -3,8 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-st.set_page_config(page_title="Bar: Lương theo giới", layout="wide")
-st.title("💼 Biểu đồ Cột: Lương Khởi điểm theo Ngành và Giới tính")
+st.set_page_config(page_title="Boxplot: Job Offers", layout="wide")
+st.title("📦 Biểu đồ Hộp: Job Offers theo Thứ hạng và Thực tập")
 
 @st.cache_data
 def load_data():
@@ -12,16 +12,21 @@ def load_data():
 
 df = load_data()
 
-# Chọn giới tính
-genders = df['Gender'].unique().tolist()
-selected_genders = st.multiselect("Chọn giới tính để so sánh:", genders, default=genders)
+# Nhóm thứ hạng và số thực tập
+df['Ranking_Group'] = pd.cut(df['University_Ranking'], bins=[0, 200, 500, 1000],
+                             labels=['Top 200', '201–500', '501–1000'])
+df['Internship_Level'] = pd.cut(df['Internships_Completed'], bins=[-1, 1, 3, 10],
+                                labels=['Ít', 'Trung bình', 'Nhiều'])
 
-filtered_df = df[df['Gender'].isin(selected_genders)]
-salary_group = filtered_df.groupby(['Field_of_Study', 'Gender'])['Starting_Salary'].mean().reset_index()
+# Chọn nhóm thực tập
+internship_levels = df['Internship_Level'].unique().tolist()
+selected_levels = st.multiselect("Chọn cấp độ thực tập:", internship_levels, default=internship_levels)
+
+filtered_df = df[df['Internship_Level'].isin(selected_levels)]
 
 fig, ax = plt.subplots(figsize=(10, 6))
-sns.barplot(data=salary_group, x="Field_of_Study", y="Starting_Salary", hue="Gender", ax=ax)
-ax.set_title("Lương khởi điểm trung bình theo ngành và giới tính")
-ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
-ax.set_ylabel("Lương khởi điểm (VND)")
+sns.boxplot(data=filtered_df, x='Ranking_Group', y='Job_Offers', hue='Internship_Level', ax=ax)
+ax.set_title("Số lời mời làm việc theo Thứ hạng trường và số lần thực tập")
+ax.set_xlabel("Nhóm Thứ hạng Đại học")
+ax.set_ylabel("Số lời mời làm việc")
 st.pyplot(fig)
