@@ -135,7 +135,7 @@ fig_line.update_layout(
     width=1250,
     xaxis=dict(
         showspikes=True,
-        spikemode='across',
+        spikemode='across',  # vertical dash only
         spikesnap='cursor',
         spikethickness=1.2,
         spikedash='dot',
