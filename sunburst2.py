@@ -1,109 +1,137 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
-import os
 
-# Cài đặt trang
-st.set_page_config(page_title="Work-Life Balance by Age", layout="centered")
-st.title("💼 Work-Life Balance theo Age và Job Level")
+st.set_page_config(page_title="Entrepreneurship Analysis", layout="wide")
 
-# Tải dữ liệu an toàn
 @st.cache_data
 def load_data():
-    file_path = "education_career_success.xlsx"
-    if not os.path.exists(file_path):
-        st.error(f"❌ File '{file_path}' không tồn tại. Vui lòng upload đúng file.")
-        st.stop()
-    return pd.read_excel(file_path)
+    return pd.read_excel("education_career_success.xlsx")
 
 df = load_data()
 
-# Sidebar: chọn Job Level
-job_levels_order = ['Entry', 'Mid', 'Senior', 'Executive']
-selected_levels = st.sidebar.multiselect(
-    "🎯 Chọn Job Level để hiển thị:",
-    options=job_levels_order + ["All"],
-    default=["All"]
+st.title("📈 Entrepreneurship and Job Offers by Age")
+st.markdown("Analyze the relationship between entrepreneurship status, job level, and job offers across age groups.")
+
+st.sidebar.title("Filter Options")
+
+# Gender filter (with 'All')
+gender_options = ['All'] + sorted(df['Gender'].dropna().unique())
+selected_gender = st.sidebar.selectbox("Select Gender", gender_options)
+if selected_gender != 'All':
+    df = df[df['Gender'] == selected_gender]
+
+# Job level filter
+job_levels = sorted(df['Current_Job_Level'].dropna().unique())
+selected_level = st.sidebar.selectbox("Select Job Level", job_levels)
+
+# Age filter
+min_age, max_age = int(df['Age'].min()), int(df['Age'].max())
+age_range = st.sidebar.slider("Select Age Range", min_value=min_age, max_value=max_age, value=(min_age, max_age))
+
+# Entrepreneurship filter (with 'All')
+entrepreneur_options = ['All', 'Yes', 'No']
+selected_status = st.sidebar.selectbox("Select Entrepreneurship Status", entrepreneur_options)
+
+# Convert to list for filtering
+selected_statuses = ['Yes', 'No'] if selected_status == 'All' else [selected_status]
+
+# Color mapping
+color_map = {'Yes': '#FFD700', 'No': '#004080'}
+
+# Grouped data for percentage bar chart
+df_grouped = (
+    df.groupby(['Current_Job_Level', 'Age', 'Entrepreneurship'])
+    .size()
+    .reset_index(name='Count')
 )
+df_grouped['Percentage'] = df_grouped.groupby(['Current_Job_Level', 'Age'])['Count'].transform(lambda x: x / x.sum())
 
-# Sidebar: slicer chọn Age range
-min_age = int(df["Age"].min())
-max_age = int(df["Age"].max())
-age_range = st.sidebar.slider(
-    "📊 Chọn khoảng tuổi (Age):",
-    min_value=min_age,
-    max_value=max_age,
-    value=(min_age, max_age)
+df_bar = df_grouped[
+    (df_grouped['Current_Job_Level'] == selected_level) &
+    (df_grouped['Age'].between(age_range[0], age_range[1]))
+]
+if selected_status != 'All':
+    df_bar = df_bar[df_bar['Entrepreneurship'] == selected_status]
+
+# Bar chart
+fig_bar = px.bar(
+    df_bar,
+    x='Age',
+    y='Percentage',
+    color='Entrepreneurship',
+    barmode='stack',
+    color_discrete_map=color_map,
+    category_orders={'Entrepreneurship': ['No', 'Yes'], 'Age': sorted(df_bar['Age'].unique())},
+    labels={'Age': 'Age', 'Percentage': 'Percentage'},
+    height=400,
+    title=f"Entrepreneurship Distribution by Age – {selected_level} Level"
 )
+fig_bar.update_layout(
+    margin=dict(t=40, l=40, r=40, b=40),
+    legend_title_text='Entrepreneurship',
+    xaxis_tickangle=90,
+    bargap=0.1
+)
+fig_bar.update_yaxes(tickformat=".0%", title="Percentage")
 
-# Lọc dữ liệu theo Age
-df_filtered = df[df["Age"].between(age_range[0], age_range[1])]
-
-# Tính trung bình Work-Life Balance theo Age và Job Level
-avg_balance = (
-    df_filtered.groupby(['Current_Job_Level', 'Age'])['Work_Life_Balance']
+# Line chart: Average Job Offers
+df_avg_offers = (
+    df[(df['Current_Job_Level'] == selected_level) &
+       (df['Entrepreneurship'].isin(selected_statuses)) &
+       (df['Age'].between(age_range[0], age_range[1]))]
+    .groupby(['Age', 'Entrepreneurship'])['Job_Offers']
     .mean()
     .reset_index()
 )
 
-avg_balance['Current_Job_Level'] = pd.Categorical(
-    avg_balance['Current_Job_Level'],
-    categories=job_levels_order,
-    ordered=True
+fig_line = go.Figure()
+
+for status in selected_statuses:
+    df_line = df_avg_offers[df_avg_offers['Entrepreneurship'] == status]
+    fig_line.add_trace(go.Scatter(
+        x=df_line['Age'],
+        y=df_line['Job_Offers'],
+        mode='lines+markers',
+        name=status,
+        marker=dict(size=6),
+        line=dict(width=2),
+        hovertemplate='Age: %{x}<br>Avg Job Offers: %{y:.2f}<extra></extra>',
+        hoverinfo='x+y',
+        line_color=color_map[status]
+    ))
+
+fig_line.update_traces(
+    line=dict(width=2),
+    marker=dict(size=6),
+    hovertemplate='%{y:.2f}<extra></extra>'  # 👈 Hiện đúng format tooltip
 )
-
-# Lọc theo Job Level nếu không chọn All
-if "All" not in selected_levels:
-    avg_balance = avg_balance[avg_balance["Current_Job_Level"].isin(selected_levels)]
-
-# Vẽ biểu đồ
-fig = go.Figure()
-colors = {
-    "Entry": "#1f77b4",      # blue
-    "Mid": "#ff7f0e",        # orange
-    "Senior": "#2ca02c",     # green
-    "Executive": "#d62728"   # red
-}
-
-for level in job_levels_order:
-    if "All" in selected_levels or level in selected_levels:
-        data_level = avg_balance[avg_balance["Current_Job_Level"] == level]
-        if not data_level.empty:
-            fig.add_trace(go.Scatter(
-                x=data_level["Age"],
-                y=data_level["Work_Life_Balance"],
-                mode="lines+markers",
-                name=level,
-                line=dict(color=colors[level]),
-                hovertemplate="%{y:.2f}<extra></extra>"
-            ))
-
-# Cấu hình layout
-fig.update_layout(
-    title="📈 Trung bình Work-Life Balance theo Age",
-    xaxis_title="Age",
-    yaxis_title="Work-Life Balance",
-    height=600,
-    width=900,
-    title_x=0.5,
-    legend_title_text="Job Level",
+fig_line.update_layout(
+    margin=dict(t=40, l=40, r=40, b=40),
+    legend_title_text='Entrepreneurship',
+    xaxis_tickangle=90,
     hovermode="x unified",
     xaxis=dict(
         showspikes=True,
-        spikemode="across",
-        spikecolor="gray",
-        spikedash="dot",
-        spikesnap="cursor",
-        spikethickness=1
+        spikemode='across',
+        spikesnap='cursor',
+        spikethickness=1.2,
+        spikedash='dot',
     ),
-    yaxis=dict(
+     yaxis=dict(
         showspikes=True,
-        spikemode="across",
-        spikecolor="gray",
-        spikedash="dot",
-        spikesnap="cursor",
-        spikethickness=1
+        spikemode='across',
+        spikesnap='cursor',
+        spikethickness=1.2,
+        spikedash='dot',
     )
 )
+fig_line.update_yaxes(title="Average Job Offers")
 
-st.plotly_chart(fig, use_container_width=True)
+# Display charts
+col1, col2 = st.columns(2)
+with col1:
+    st.plotly_chart(fig_bar, use_container_width=True)
+with col2:
+    st.plotly_chart(fig_line, use_container_width=True)
