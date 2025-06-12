@@ -1,69 +1,89 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.graph_objects as go
 
-# Thiết lập giao diện
-st.set_page_config(page_title="Phân tích Hiệu suất & Thăng tiến", layout="wide")
-st.title("📈 Dashboard: Hiệu suất cá nhân và Thăng tiến nghề nghiệp")
-
-# Tải dữ liệu
+# Load dữ liệu
 @st.cache_data
 def load_data():
-    df = pd.read_excel("education_career_success.xlsx")
-    return df
+    return pd.read_csv("education_career_success.csv")
 
 df = load_data()
 
-# Sidebar: bộ lọc liên kết
-st.sidebar.header("🔎 Bộ lọc dữ liệu")
+# Tính trung bình Work-Life Balance theo Job Level và Age
+avg_balance = (
+    df.groupby(['Current_Job_Level', 'Age'])['Work_Life_Balance']
+    .mean()
+    .reset_index()
+)
 
-# Lọc giới tính
-genders = df["Gender"].dropna().unique().tolist()
-selected_gender = st.sidebar.selectbox("Chọn giới tính:", ["Tất cả"] + genders)
-if selected_gender != "Tất cả":
-    df = df[df["Gender"] == selected_gender]
+# Sắp xếp thứ tự cấp bậc công việc
+job_levels_order = ['Entry', 'Mid', 'Senior', 'Executive']
+avg_balance['Current_Job_Level'] = pd.Categorical(
+    avg_balance['Current_Job_Level'], categories=job_levels_order, ordered=True
+)
 
-# Lọc ngành học
-fields = df["Field_of_Study"].dropna().unique().tolist()
-selected_fields = st.sidebar.multiselect("Chọn ngành học:", fields, default=fields)
-df = df[df["Field_of_Study"].isin(selected_fields)]
+# Sidebar chọn cấp bậc
+selected_levels = st.sidebar.multiselect(
+    "Select Job Levels to Display",
+    options=job_levels_order + ["All"],
+    default=["All"]
+)
 
-# Lọc theo GPA
-min_gpa, max_gpa = df["University_GPA"].min(), df["University_GPA"].max()
-gpa_range = st.sidebar.slider("Khoảng điểm GPA đại học:", float(min_gpa), float(max_gpa),
-                              (float(min_gpa), float(max_gpa)))
-df = df[(df["University_GPA"] >= gpa_range[0]) & (df["University_GPA"] <= gpa_range[1])]
+if "All" in selected_levels or not selected_levels:
+    filtered_data = avg_balance
+else:
+    filtered_data = avg_balance[avg_balance["Current_Job_Level"].isin(selected_levels)]
 
-if df.empty:
-    st.warning("⚠️ Không có dữ liệu phù hợp với bộ lọc.")
-    st.stop()
+# Tạo biểu đồ bằng go.Figure
+fig = go.Figure()
 
-# Biểu đồ 1: Violin plot - Years_to_Promotion theo ngành
-st.subheader("🎻 Biểu đồ 1: Phân phối số năm để được thăng chức theo Ngành học")
+colors = {
+    "Entry": "#1f77b4",      # blue
+    "Mid": "#ff7f0e",        # orange
+    "Senior": "#2ca02c",     # green
+    "Executive": "#d62728"   # red
+}
 
-fig1, ax1 = plt.subplots(figsize=(8, 4))
-sns.violinplot(data=df, x="Field_of_Study", y="Years_to_Promotion", ax=ax1, inner="quart")
-ax1.set_ylabel("Số năm thăng chức")
-ax1.set_xlabel("Ngành học")
-ax1.set_xticklabels(ax1.get_xticklabels(), rotation=45)
-st.pyplot(fig1)
+# Thêm từng trace cho mỗi Job Level
+for level in job_levels_order:
+    if "All" in selected_levels or level in selected_levels:
+        data_level = filtered_data[filtered_data["Current_Job_Level"] == level]
+        fig.add_trace(go.Scatter(
+            x=data_level["Age"],
+            y=data_level["Work_Life_Balance"],
+            mode="lines+markers",
+            name=level,
+            line=dict(color=colors[level]),
+            hovertemplate=f"%{{y:.2f}}"
+        ))
 
-# Biểu đồ 2: Lineplot - Career Satisfaction theo Soft Skills Score
-st.subheader("📈 Biểu đồ 2: Mức độ hài lòng nghề nghiệp theo điểm Kỹ năng mềm")
+# Cấu hình layout
+fig.update_layout(
+    title="Average Work-Life Balance by Age",
+    xaxis_title="Age",
+    yaxis_title="Average Work-Life Balance",
+    height=600,
+    width=900,
+    title_x=0.5,
+    legend_title_text="Job Level",
+    hovermode="x unified",
+    xaxis=dict(
+        showspikes=True,
+        spikemode="across",
+        spikesnap="cursor",
+        spikedash="dot",
+        spikethickness=1,
+        spikecolor="gray"
+    ),
+    yaxis=dict(
+        showspikes=True,
+        spikemode="across",
+        spikesnap="cursor",
+        spikedash="dot",
+        spikethickness=1,
+        spikecolor="gray"
+    )
+)
 
-avg_satisfaction = df.groupby("Soft_Skills_Score")["Career_Satisfaction"].mean().reset_index()
-fig2, ax2 = plt.subplots(figsize=(6, 4))
-sns.lineplot(data=avg_satisfaction, x="Soft_Skills_Score", y="Career_Satisfaction", marker="o", ax=ax2)
-ax2.set_xlabel("Soft Skills Score")
-ax2.set_ylabel("Career Satisfaction (trung bình)")
-st.pyplot(fig2)
-
-# Biểu đồ 3: Boxplot - Starting Salary theo Job Level
-st.subheader("💼 Biểu đồ 3: Lương khởi điểm theo cấp bậc công việc")
-
-fig3, ax3 = plt.subplots(figsize=(6, 4))
-sns.boxplot(data=df, x="Current_Job_Level", y="Starting_Salary", ax=ax3)
-ax3.set_xlabel("Cấp bậc hiện tại")
-ax3.set_ylabel("Lương khởi điểm (VND)")
-st.pyplot(fig3)
+# Hiển thị biểu đồ
+st.plotly_chart(fig, use_container_width=True)
