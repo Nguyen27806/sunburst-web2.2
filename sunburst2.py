@@ -1,115 +1,66 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import os
 
-# Load and preprocess data
-df = pd.read_excel("education_career_success.xlsx", sheet_name=0)
-df = df[df['Entrepreneurship'].isin(['Yes', 'No'])]
+# Thiết lập giao diện
+st.set_page_config(page_title="Entrepreneurship Heatmap", layout="centered")
+st.title("🔥 Tỷ lệ Khởi nghiệp theo Tuổi và Giới tính")
 
-# Sidebar filters
-st.sidebar.title("Filters")
+# ===== Tải và xử lý dữ liệu =====
+@st.cache_data
+def load_data():
+    file_path = "education_career_success.xlsx"
+    if not os.path.exists(file_path):
+        st.error(f"❌ Không tìm thấy file '{file_path}'. Vui lòng kiểm tra lại.")
+        st.stop()
+    df = pd.read_excel(file_path)
+    df = df[df['Entrepreneurship'].isin(['Yes', 'No'])]
+    df = df[df['Gender'].notna()]
+    df['Age'] = df['Age'].round()  # gom nhóm tuổi cho heatmap dễ nhìn
+    return df
 
-# Gender filter
-genders = sorted(df['Gender'].dropna().unique())
-selected_genders = st.sidebar.multiselect("Select Gender", genders, default=genders)
+df = load_data()
 
-# Filter data based on selected genders
-df = df[df['Gender'].isin(selected_genders)]
+# ===== Sidebar chọn Entrepreneurship status =====
+st.sidebar.header("🎯 Bộ lọc")
+entre_choices = ['Yes', 'No']
+selected_status = st.sidebar.selectbox("Chọn Trạng thái Khởi nghiệp", entre_choices, index=0)
 
-# Grouping
-df_grouped = (
-    df.groupby(['Entrepreneurship', 'Age', 'Current_Job_Level'])
-      .size()
-      .reset_index(name='Count')
+# ===== Lọc dữ liệu theo Entrepreneurship =====
+df_filtered = df[df['Entrepreneurship'] == selected_status]
+
+# ===== Tính tỷ lệ giới tính theo Age trong nhóm Entrepreneurship =====
+# (vẫn dùng cột Entrepreneurship là điều kiện lọc, còn heatmap sẽ phân bố theo Age & Gender)
+heat_df = (
+    df_filtered.groupby(['Age', 'Gender'])
+    .size()
+    .reset_index(name='Count')
 )
-df_grouped['Percentage'] = df_grouped.groupby(['Entrepreneurship', 'Age'])['Count'].transform(lambda x: x / x.sum())
 
-# === Replace Job Level Filter with Entrepreneurship Filter ===
-entre_options = ['Yes', 'No']
-selected_status = st.sidebar.selectbox("Select Entrepreneurship Status", entre_options)
+# Tính tổng theo Age để lấy tỷ lệ từng giới trong từng nhóm tuổi
+heat_df['Total'] = heat_df.groupby('Age')['Count'].transform('sum')
+heat_df['Rate'] = heat_df['Count'] / heat_df['Total']
 
-# Age filter
-min_age, max_age = int(df_grouped['Age'].min()), int(df_grouped['Age'].max())
-age_range = st.sidebar.slider("Select Age Range", min_value=min_age, max_value=max_age, value=(min_age, max_age))
+# ===== Vẽ biểu đồ heatmap =====
+fig = px.density_heatmap(
+    heat_df,
+    x='Age',
+    y='Gender',
+    z='Rate',
+    color_continuous_scale='Viridis',
+    title=f"🔥 Tỷ lệ giới tính trong nhóm '{selected_status}' – theo Tuổi",
+    labels={'Rate': 'Tỷ lệ'},
+    height=400,
+    width=600
+)
 
-# Final filtered dataset
-filtered = df_grouped[
-    (df_grouped['Entrepreneurship'] == selected_status) &
-    (df_grouped['Age'].between(age_range[0], age_range[1]))
-]
+fig.update_layout(
+    margin=dict(t=50, l=40, r=40, b=40),
+    xaxis_title="Tuổi",
+    yaxis_title="Giới tính",
+    coloraxis_colorbar=dict(title="Tỷ lệ", tickformat=".0%")
+)
 
-def font_size_by_count(n):
-    return {1: 20, 2: 18, 3: 16, 4: 14, 5: 12, 6: 11, 7: 10, 8: 9, 9: 8, 10: 7}.get(n, 6)
-
-color_map = {'Yes': '#FFD700', 'No': '#004080'}
-
-if filtered.empty:
-    st.write(f"### No data available for entrepreneurship = {selected_status}.")
-else:
-    ages = sorted(filtered['Age'].unique())
-    font_size = font_size_by_count(len(ages))
-    chart_width = max(400, min(1200, 50 * len(ages) + 100))
-
-    # ===== Bar chart: Percentage =====
-    fig_bar = px.bar(
-        filtered,
-        x='Age',
-        y='Percentage',
-        color='Current_Job_Level',
-        barmode='stack',
-        color_discrete_sequence=px.colors.qualitative.Set2,
-        category_orders={'Age': ages},
-        labels={'Age': 'Age', 'Percentage': 'Percentage'},
-        height=400,
-        width=chart_width,
-        title=f"Entrepreneurship: {selected_status} – Job Level Distribution by Age (%)"
-    )
-
-    for _, row in filtered.iterrows():
-        if row['Percentage'] > 0:
-            y_pos = 0.9
-            fig_bar.add_annotation(
-                x=row['Age'],
-                y=y_pos,
-                text=f"{row['Percentage']:.0%}",
-                showarrow=False,
-                font=dict(color="white", size=font_size),
-                xanchor="center",
-                yanchor="middle"
-            )
-
-    fig_bar.update_layout(
-        margin=dict(t=40, l=40, r=40, b=40),
-        legend_title_text='Job Level',
-        xaxis_tickangle=90,
-        bargap=0.1
-    )
-    fig_bar.update_yaxes(tickformat=".0%", title="Percentage")
-
-    # ===== Area chart: Count =====
-    fig_area = px.area(
-        filtered,
-        x='Age',
-        y='Count',
-        color='Current_Job_Level',
-        markers=True,
-        color_discrete_sequence=px.colors.qualitative.Set2,
-        category_orders={'Age': ages},
-        labels={'Age': 'Age', 'Count': 'Count'},
-        height=400,
-        width=chart_width,
-        title=f"Entrepreneurship: {selected_status} – Job Level Distribution by Age (Count)"
-    )
-    fig_area.update_traces(line=dict(width=2), marker=dict(size=8))
-    fig_area.update_layout(
-        margin=dict(t=40, l=40, r=40, b=40),
-        legend_title_text='Job Level',
-        xaxis_tickangle=90
-    )
-    fig_area.update_yaxes(title="Count")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.plotly_chart(fig_bar, use_container_width=True)
-    with col2:
-        st.plotly_chart(fig_area, use_container_width=True)
+# ===== Hiển thị biểu đồ =====
+st.plotly_chart(fig, use_container_width=True)
