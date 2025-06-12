@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# Sample Data
+# Sample data
 data = {
     'Entrepreneurship': ['Yes', 'Yes', 'Yes', 'No', 'No', 'No'],
     'Field_of_Study': ['Engineering', 'Business', 'Arts', 'Engineering', 'Business', 'Arts'],
@@ -12,31 +12,38 @@ data = {
 
 df = pd.DataFrame(data)
 
-# Streamlit App
-st.title("Sunburst Chart with Selectable Depth")
+# Title
+st.title("Sunburst Chart with Customizable Rings")
 
-# Dropdown to choose level of depth
-depth_option = st.selectbox(
-    "Select depth level (how many rings to show):",
-    options=[1, 2, 3],
-    index=2,
-    help="1 = Entrepreneurship only, 2 = +Field of Study, 3 = +Salary Group"
+# Two dropdowns
+include_field = st.selectbox(
+    "Include Field of Study?",
+    options=["Yes", "No"],
+    index=0
 )
 
-# Define levels dynamically based on selection
-levels = ['Entrepreneurship', 'Field_of_Study', 'Salary_Group'][:depth_option]
+include_salary = st.selectbox(
+    "Include Salary Group?",
+    options=["Yes", "No"],
+    index=0
+)
+
+# Construct path based on choices
+path = ['Entrepreneurship']
+if include_field == "Yes":
+    path.append('Field_of_Study')
+if include_salary == "Yes":
+    path.append('Salary_Group')
 
 # Create sunburst chart
 fig = px.sunburst(
     df,
-    path=levels,
+    path=path,
     values='Count'
 )
 
-# Update trace settings
 fig.update_traces(
     insidetextorientation='radial',
-    maxdepth=depth_option,
     branchvalues="total",
     textinfo='label+percent entry',
     hovertemplate="<b>%{label}</b><br>Value: %{value}<br>"
