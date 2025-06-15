@@ -7,7 +7,7 @@ import numpy as np
 
 st.set_page_config(page_title="Entrepreneurship Insights", layout="wide")
 
-# --- GLOBAL STYLES: nền pastel + toàn bộ chữ màu đen ---
+# 🔧 Chỉ đổi màu chữ thành đen, giữ nguyên nền
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter&display=swap');
@@ -16,8 +16,6 @@ st.markdown("""
         font-family: 'Inter', sans-serif !important;
         color: #000000 !important;
         font-size: 15px;
-        background: linear-gradient(to right, #fde2e4, #fad6a5);
-        background-attachment: fixed;
     }
 
     .main-title {
@@ -33,13 +31,21 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# 🧠 CSS ngoài (nếu bạn dùng file style riêng như nền pastel...)
+def local_css(file_name):
+    with open(file_name) as f:
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+
+# ⚠️ Mở nếu bạn có file style riêng
+local_css("style/style.css")
+
 @st.cache_data
 def load_data():
     return pd.read_excel("education_career_success.xlsx")
 
 df = load_data()
 
-# --- SIDEBAR FILTERS ---
+# ============ SIDEBAR FILTERS ============
 st.sidebar.title("Filters")
 
 gender_options = sorted(df['Gender'].dropna().unique())
@@ -47,8 +53,6 @@ selected_genders = st.sidebar.multiselect("Select Gender(s)", gender_options, de
 
 if not selected_genders:
     st.sidebar.warning("⚠️ No gender selected. Using full data.")
-    gender_filtered = df
-elif 'All' in selected_genders:
     gender_filtered = df
 else:
     gender_filtered = df[df['Gender'].isin(selected_genders)]
@@ -58,9 +62,8 @@ selected_level = st.sidebar.selectbox("Select Job Level", job_levels)
 
 min_age, max_age = int(df['Age'].min()), int(df['Age'].max())
 age_range = st.sidebar.slider("Select Age Range", min_value=min_age, max_value=max_age, value=(min_age, max_age))
-
 if age_range[0] == age_range[1]:
-    st.sidebar.warning(f"⚠️ Only one age ({age_range[0]}) selected. Using full range.")
+    st.sidebar.warning("⚠️ Only one age selected. Using full range.")
     age_range = (min_age, max_age)
 
 st.sidebar.markdown("**Entrepreneurship Status**")
@@ -71,15 +74,15 @@ selected_statuses = []
 if show_yes: selected_statuses.append("Yes")
 if show_no: selected_statuses.append("No")
 if not selected_statuses:
-    st.sidebar.warning("⚠️ No status selected. Using all data.")
+    st.sidebar.warning("⚠️ No status selected. Using full data.")
     selected_statuses = ['Yes', 'No']
 
 color_map = {'Yes': '#FFD700', 'No': '#004080'}
 
-# --- TABS ---
+# ============ TABS =============
 tab1, tab2 = st.tabs(["📈 Demographics", "📊 Job Offers"])
 
-# === TAB 1 ===
+# ============ TAB 1 =============
 with tab1:
     st.markdown("<h1 class='main-title'>📊 Demographics</h1>", unsafe_allow_html=True)
     chart_option = st.selectbox("Select Variable for Visualization", ['Gender Distribution', 'Field of Study'])
@@ -91,8 +94,9 @@ with tab1:
     ]
 
     if df_demo.empty:
-        st.warning("⚠️ No data to show.")
+        st.warning("⚠️ No data to display.")
     else:
+        # Summary box
         if chart_option == 'Gender Distribution':
             female_percent = (df_demo['Gender'] == 'Female').mean() * 100
             st.markdown(f"""
@@ -115,10 +119,11 @@ with tab1:
                 </div>
             """, unsafe_allow_html=True)
 
+        # Charts
         col1, col2 = st.columns(2)
+        group_col = 'Gender' if chart_option == 'Gender Distribution' else 'Field_of_Study'
 
         with col1:
-            group_col = 'Gender' if chart_option == 'Gender Distribution' else 'Field_of_Study'
             fig_density = go.Figure()
             for cat in df_demo[group_col].dropna().unique():
                 age_data = df_demo[df_demo[group_col] == cat]['Age']
@@ -129,11 +134,7 @@ with tab1:
                     fig_density.add_trace(go.Scatter(x=x_vals, y=y_vals, mode='lines', name=cat, fill='tozeroy'))
             fig_density.update_layout(
                 title=f"Age Distribution by {group_col}",
-                xaxis_title="Age",
-                yaxis_title="Density",
-                height=500,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
+                xaxis_title="Age", yaxis_title="Density", height=500
             )
             st.plotly_chart(fig_density, use_container_width=True)
 
@@ -141,14 +142,10 @@ with tab1:
             counts = df_demo[group_col].value_counts().reset_index()
             counts.columns = [group_col, 'Count']
             fig_donut = go.Figure(data=[go.Pie(labels=counts[group_col], values=counts['Count'], hole=0.5)])
-            fig_donut.update_layout(
-                title=f"{chart_option} Distribution",
-                height=350,
-                paper_bgcolor='rgba(0,0,0,0)'
-            )
+            fig_donut.update_layout(title=f"{chart_option} Distribution", height=350)
             st.plotly_chart(fig_donut, use_container_width=True)
 
-# === TAB 2 ===
+# ============ TAB 2 =============
 with tab2:
     st.markdown("<h1 class='main-title'>📊 Job Offers</h1>", unsafe_allow_html=True)
 
@@ -159,7 +156,7 @@ with tab2:
     ]
 
     if df_filtered.empty:
-        st.warning("⚠️ No data to show.")
+        st.warning("⚠️ No data available.")
     else:
         df_grouped = (
             df.groupby(['Current_Job_Level', 'Age', 'Entrepreneurship'])
