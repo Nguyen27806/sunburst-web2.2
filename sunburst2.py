@@ -7,9 +7,7 @@ import numpy as np
 
 st.set_page_config(page_title="Entrepreneurship Insights", layout="wide")
 
-from utils import apply_global_styles
-apply_global_styles()
-
+# Global styles (instead of importing from utils)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter&display=swap');
@@ -26,6 +24,10 @@ st.markdown("""
         margin-bottom: 20px;
         color: #222;
     }
+
+    .stApp {
+        background-color: #f9f9f9;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -33,7 +35,8 @@ def local_css(file_name):
     with open(file_name) as f:
         st.markdown('<style>{}</style>'.format(f.read()), unsafe_allow_html=True)
 
-local_css("style/style.css")
+# Optional: uncomment if you have a style file
+# local_css("style/style.css")
 
 @st.cache_data
 def load_data():
@@ -41,62 +44,47 @@ def load_data():
 
 df = load_data()
 
-
 # Sidebar Filters
 st.sidebar.title("Filters")
-
-# Gender Filter - Multiselect
 gender_options = sorted(df['Gender'].dropna().unique())
 selected_genders = st.sidebar.multiselect("Select Gender(s)", gender_options, default=gender_options)
 
-# Handle Gender Filter
 if not selected_genders:
     st.sidebar.warning("⚠️ No gender selected. Using full data. Please choose at least one option.")
-    gender_filtered = df  # fallback to full data to avoid crash
+    gender_filtered = df
 elif 'All' in selected_genders:
     gender_filtered = df
 else:
     gender_filtered = df[df['Gender'].isin(selected_genders)]
 
-# Job Level Filter
 job_levels = sorted(df['Current_Job_Level'].dropna().unique())
 selected_level = st.sidebar.selectbox("Select Job Level", job_levels)
 
-# Age Filter
 min_age, max_age = int(df['Age'].min()), int(df['Age'].max())
 age_range = st.sidebar.slider("Select Age Range", min_value=min_age, max_value=max_age, value=(min_age, max_age))
-
-# Check if only one age selected
 if age_range[0] == age_range[1]:
     st.sidebar.warning(f"⚠️ Only one age ({age_range[0]}) selected. Using full age range.")
     age_range = (min_age, max_age)
 
-# Entrepreneurship Status Filter - Individual Checkboxes
 st.sidebar.markdown("**Select Entrepreneurship Status**")
 show_yes = st.sidebar.checkbox("Yes", value=True)
 show_no = st.sidebar.checkbox("No", value=True)
-
 selected_statuses = []
 if show_yes:
     selected_statuses.append("Yes")
 if show_no:
     selected_statuses.append("No")
-
-if not (show_yes or show_no):
+if not selected_statuses:
     st.sidebar.warning("⚠️ No status selected. Using full data. Please choose at least one option.")
     selected_statuses = ['Yes', 'No']
 
 color_map = {'Yes': '#FFD700', 'No': '#004080'}
 
-# Main Tabs
 graph_tab = st.tabs(["📈 Demographics", "📊 Job Offers"])
 
-# === TAB 1 (Demographics) ===
+# === TAB 1: Demographics ===
 with graph_tab[0]:
-    st.markdown("""
-        <h1 style='font-family: "Inter", sans-serif; color: #cf5a2e; font-size: 40px;'>📊 Demographics</h1>
-    """, unsafe_allow_html=True)
-    
+    st.markdown("""<h1 style='font-family: "Inter", sans-serif; color: #cf5a2e; font-size: 40px;'>📊 Demographics</h1>""", unsafe_allow_html=True)
     chart_option = st.selectbox("Select Variable for Visualization", ['Gender Distribution', 'Field of Study'])
 
     df_demo = gender_filtered[
@@ -109,75 +97,46 @@ with graph_tab[0]:
         st.warning("⚠️ Not enough data to display charts. Please adjust the filters.")
     else:
         if chart_option == 'Gender Distribution':
-            with st.container():
-                st.markdown("""<div style="border: 2px solid #cf5a2e; border-radius: 12px; padding: 20px; margin-top: 10px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
-                    <div style="display: flex; justify-content: space-around; text-align: center; line-height: 1.3;">
-                        <div>
-                            <div style="font-size: 14px; color: #555;">Total Records</div>
-                            <div style="font-size: 28px;">{}</div>
-                        </div>
-                        <div>
-                            <div style="font-size: 14px; color: #555;">Median Age</div>
-                            <div style="font-size: 28px;">{:.1f}</div>
-                        </div>
-                        <div>
-                            <div style="font-size: 14px; color: #555;">% Female</div>
-                            <div style="font-size: 28px;">{:.1f}%</div>
-                        </div>
-                    </div></div>
-                """.format(len(df_demo), df_demo['Age'].median(),
-                           (df_demo['Gender'] == 'Female').mean() * 100),
-                unsafe_allow_html=True)
-
+            st.markdown("""<div style="border: 2px solid #cf5a2e; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+                <div style="display: flex; justify-content: space-around; text-align: center;">
+                    <div><div>Total Records</div><div style="font-size: 28px;">{}</div></div>
+                    <div><div>Median Age</div><div style="font-size: 28px;">{:.1f}</div></div>
+                    <div><div>% Female</div><div style="font-size: 28px;">{:.1f}%</div></div>
+                </div></div>
+            """.format(len(df_demo), df_demo['Age'].median(),
+                       (df_demo['Gender'] == 'Female').mean() * 100),
+                       unsafe_allow_html=True)
         else:
             top_fields = df_demo['Field_of_Study'].value_counts().head(3).index.tolist()
             display_fields = ", ".join(top_fields) if top_fields else "N/A"
-            with st.container():
-                st.markdown("""<div style="border: 2px solid #cf5a2e; border-radius: 12px; padding: 20px; margin-top: 10px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
-                    <div style="display: flex; justify-content: space-around; text-align: center; line-height: 1.3;">
-                        <div>
-                            <div style="font-size: 14px; color: #555;">Total Records</div>
-                            <div style="font-size: 28px;">{}</div>
-                        </div>
-                        <div>
-                            <div style="font-size: 14px; color: #555;">Top 3 Fields</div>
-                            <div style="font-size: 20px;">{}</div>
-                        </div>
-                    </div></div>
-                """.format(len(df_demo), display_fields),
-                unsafe_allow_html=True)
+            st.markdown("""<div style="border: 2px solid #cf5a2e; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+                <div style="display: flex; justify-content: space-around; text-align: center;">
+                    <div><div>Total Records</div><div style="font-size: 28px;">{}</div></div>
+                    <div><div>Top 3 Fields</div><div style="font-size: 20px;">{}</div></div>
+                </div></div>
+            """.format(len(df_demo), display_fields),
+            unsafe_allow_html=True)
 
         col1, col2 = st.columns(2)
-
         with col1:
             fig_density = go.Figure()
             group_col = 'Gender' if chart_option == 'Gender Distribution' else 'Field_of_Study'
             title = f"Age Distribution by {group_col.replace('_', ' ')}"
-            categories = df_demo[group_col].dropna().unique()
-
-            for cat in categories:
+            for cat in df_demo[group_col].dropna().unique():
                 age_data = df_demo[df_demo[group_col] == cat]['Age']
                 if len(age_data) > 1:
                     kde = gaussian_kde(age_data)
                     x_vals = np.linspace(age_range[0], age_range[1], 100)
                     y_vals = kde(x_vals)
-                    fig_density.add_trace(go.Scatter(
-                        x=x_vals,
-                        y=y_vals,
-                        mode='lines',
-                        name=str(cat),
-                        fill='tozeroy'
-                    ))
+                    fig_density.add_trace(go.Scatter(x=x_vals, y=y_vals, mode='lines', name=str(cat), fill='tozeroy'))
 
             fig_density.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
                 title=title,
                 xaxis_title="Age",
                 yaxis_title="Density",
                 height=500,
-                margin=dict(t=40, l=40, r=40, b=80),
-                legend=dict(orientation="h", yanchor="bottom", y=-0.35, xanchor="center", x=0.5)
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
             )
             st.plotly_chart(fig_density, use_container_width=True)
 
@@ -185,69 +144,33 @@ with graph_tab[0]:
             if chart_option == 'Gender Distribution':
                 counts = df_demo['Gender'].value_counts().reset_index()
                 counts.columns = ['Gender', 'Count']
-                labels, values = counts['Gender'], counts['Count']
             else:
                 counts = df_demo['Field_of_Study'].value_counts().reset_index()
                 counts.columns = ['Field of Study', 'Count']
-                labels, values = counts['Field of Study'], counts['Count']
-
-            fig_donut = go.Figure(data=[go.Pie(labels=labels, values=values, hole=0.5)])
+            fig_donut = go.Figure(data=[go.Pie(labels=counts.iloc[:, 0], values=counts['Count'], hole=0.5)])
             fig_donut.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
                 title=f"{chart_option} Distribution (Donut Chart)",
                 height=350,
-                margin=dict(t=40, l=40, r=40, b=40),
-                showlegend=True
+                paper_bgcolor='rgba(0,0,0,0)'
             )
             st.plotly_chart(fig_donut, use_container_width=True)
 
-# === TAB 2 (Job Offers) ===
+# === TAB 2: Job Offers ===
 job_level_notes = {
-    "Entry": """
-        - Majority of individuals across all ages do not pursue entrepreneurship.<br>
-        - A slight increase in entrepreneurial interest is seen between ages 21–23.<br>
-    """,
-    "Mid": """
-        - Entrepreneurship participation remains relatively steady, with slight increases around age 21–23.<br>
-        - Majority still fall under the non-entrepreneurship group across all ages.<br>
-    """,
-    "Senior": """
-        - A fairly balanced distribution between entrepreneurs and non-entrepreneurs, with some age groups showing higher entrepreneurship (e.g., age 29).<br>
-        - Proportion of entrepreneurs is more prominent than in mid and entry levels.<br>
-    """,
-    "Executive": """
-        - Entrepreneurship (Yes) fluctuates across ages, with no clear increasing or decreasing pattern.<br>
-        - Ages 20–22 show a relatively higher proportion of entrepreneurship compared to other ages.<br>
-    """
+    "Entry": "- Entrepreneurship increases slightly at age 21–23.",
+    "Mid": "- Slight increases in participation around 21–23.",
+    "Senior": "- Entrepreneurs more common at age 29.",
+    "Executive": "- High entrepreneurship at ages 20–22."
 }
-
 job_offers_notes = {
-    "Entry": """
-        - Individuals with entrepreneurial intentions generally receive more job offers, especially at ages 18, 26, and 28.<br>
-        - Entrepreneurial individuals maintain a more stable or slightly upward trend in offers.<br>
-    """,
-    "Mid": """
-        - Highest job offer spike for entrepreneurs occurs around age 27.<br>
-        - Despite fluctuations, the difference in job offers between groups is generally narrow (within ~0.5).<br>
-    """,
-    "Senior": """
-        - Sharp spike for entrepreneurs at age 29 indicates potential late-career success.<br>
-        - Entrepreneurs face more volatility in job offers, suggesting high risk–high reward dynamics at senior levels.<br>
-    """,
-    "Executive": """
-        - Peak job offers for entrepreneurs occur around age 27, suggesting growing opportunities with age.<br>
-        - Fluctuations in entrepreneurial job offers imply less stability compared to non-entrepreneurs.<br>
-    """
+    "Entry": "- More offers for entrepreneurs at ages 18, 26, 28.",
+    "Mid": "- Peak at age 27 for entrepreneurs.",
+    "Senior": "- Spikes at age 29 for entrepreneurs.",
+    "Executive": "- Peak offers at age 27 for entrepreneurs."
 }
 
 with graph_tab[1]:
-    st.markdown("""
-        <h1 style='font-family: "Inter", sans-serif; color: #cf5a2e; font-size: 36px;'>Job Offers</h1>
-    """, unsafe_allow_html=True)
-
-
-
+    st.markdown("""<h1 style='font-family: "Inter", sans-serif; color: #cf5a2e; font-size: 36px;'>Job Offers</h1>""", unsafe_allow_html=True)
     df_filtered = gender_filtered[
         (gender_filtered['Current_Job_Level'] == selected_level) &
         (gender_filtered['Age'].between(age_range[0], age_range[1])) &
@@ -257,26 +180,6 @@ with graph_tab[1]:
     if df_filtered.empty:
         st.warning("⚠️ Not enough data to display charts. Please adjust the filters.")
     else:
-        with st.container():
-            st.markdown("""<div style="border: 2px solid #cf5a2e; border-radius: 12px; padding: 20px; margin-top: 10px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
-                <div style="display: flex; justify-content: space-around; text-align: center; line-height: 1.3;">
-                    <div>
-                        <div style="font-size: 14px; color: #555;">Total Records</div>
-                        <div style="font-size: 28px;">{}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 14px; color: #555;">Median Age</div>
-                        <div style="font-size: 28px;">{:.1f}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 14px; color: #555;">Entrepreneurs (%)</div>
-                        <div style="font-size: 28px;">{:.1f}%</div>
-                    </div>
-                </div></div>
-            """.format(len(df_filtered), df_filtered['Age'].median(),
-                       (df_filtered['Entrepreneurship'] == "Yes").mean() * 100),
-            unsafe_allow_html=True)
-
         df_grouped = (
             df.groupby(['Current_Job_Level', 'Age', 'Entrepreneurship'])
             .size()
@@ -294,35 +197,16 @@ with graph_tab[1]:
         even_ages = [age for age in even_ages if age % 2 == 0]
 
         fig_bar = px.bar(
-            df_bar,
-            x='Age',
-            y='Percentage',
-            color='Entrepreneurship',
-            barmode='stack',
-            color_discrete_map=color_map,
-            category_orders={'Entrepreneurship': ['No', 'Yes']},
-            labels={'Age': 'Age', 'Percentage': 'Percentage'},
-            height=450,
-            width=1250,
-            title=f"Entrepreneurship Distribution by Age – {selected_level} Level"
+            df_bar, x='Age', y='Percentage', color='Entrepreneurship',
+            barmode='stack', color_discrete_map=color_map,
+            title=f"Entrepreneurship Distribution by Age – {selected_level} Level",
+            height=450
         )
-
-        fig_bar.update_traces(
-            hovertemplate="Entrepreneurship=%{customdata[0]}<br>Age=%{x}<br>Percentage=%{y:.0%}<extra></extra>",
-            customdata=df_bar[['Entrepreneurship']].values,
-            hoverinfo="skip"
-        )
-
         fig_bar.update_layout(
+            yaxis=dict(title="Percentage", tickformat=".0%", range=[0, 1]),
+            xaxis=dict(tickvals=even_ages),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(t=40, l=40, r=40, b=40),
-            legend_title_text='Entrepreneurship',
-            xaxis_tickangle=0,
-            bargap=0.1,
-            xaxis=dict(tickvals=even_ages),
-            yaxis=dict(title="Percentage", range=[0, 1], tickformat=".0%"),
-            legend=dict(orientation='h', yanchor='bottom', y=-0.3, xanchor='center', x=0.5)
         )
 
         df_avg_offers = (
@@ -336,77 +220,28 @@ with graph_tab[1]:
         for status in selected_statuses:
             data_status = df_avg_offers[df_avg_offers["Entrepreneurship"] == status]
             fig_line.add_trace(go.Scatter(
-                x=data_status["Age"],
-                y=data_status["Job_Offers"],
-                mode="lines+markers",
-                name=status,
+                x=data_status["Age"], y=data_status["Job_Offers"],
+                mode="lines+markers", name=status,
                 line=dict(color=color_map[status], width=2),
-                marker=dict(size=6),
-                hovertemplate="%{y:.2f}"
+                marker=dict(size=6)
             ))
-
         fig_line.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
             title=f"Average Job Offers by Age – {selected_level} Level",
-            margin=dict(t=40, l=40, r=40, b=40),
-            legend_title_text='Entrepreneurship',
-            xaxis_tickangle=0,
-            hovermode="x unified",
-            width=1250,
-            xaxis=dict(
-                showspikes=True,
-                spikemode='across',
-                spikesnap='cursor',
-                spikethickness=1.2,
-                spikedash='dot',
-                tickvals=even_ages
-            ),
-            yaxis=dict(
-                title="Average Job Offers",
-                showspikes=True,
-                spikemode='across',
-                spikesnap='cursor',
-                spikethickness=1.2,
-                spikedash='dot',
-                gridcolor='#b4adae'
-            ),
-            legend=dict(orientation='h', yanchor='bottom', y=-0.3, xanchor='center', x=0.5)
+            yaxis_title="Average Job Offers",
+            xaxis=dict(tickvals=even_ages),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
         )
 
         col1, col2 = st.columns(2)
-        with col1:
-            st.plotly_chart(fig_bar, use_container_width=True)
-        with col2:
-            st.plotly_chart(fig_line, use_container_width=True)
-            
-        # Add dual note boxes below the two charts
-        note_bar = job_level_notes.get(selected_level, "No specific notes available for this level.")
-        note_line = job_offers_notes.get(selected_level, "No specific notes available for this level.")
-        
+        col1.plotly_chart(fig_bar, use_container_width=True)
+        col2.plotly_chart(fig_line, use_container_width=True)
+
+        # Notes
         note_style = """
-        <div style="
-            background-color: #fff4ec;
-            border-left: 6px solid #cf5a2e;
-            padding: 18px 22px;
-            margin-top: 25px;
-            border-radius: 12px;
-            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
-            font-family: 'Segoe UI', sans-serif;
-        ">
-            <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #cf5a2e;">
-                📌 {title}
-            </div>
-            <div style="font-size: 14px; color: #444;">
-                {text}
-            </div>
+        <div style="background-color:#fff4ec;border-left:6px solid #cf5a2e;padding:15px 20px;margin-top:20px;border-radius:8px;">
+            <b>{title}</b><br>{text}
         </div>
         """
-        
-        note_col1, note_col2 = st.columns(2)
-        
-        with note_col1:
-            st.markdown(note_style.format(title=f"Entrepreneurship Distribution Key Note – {selected_level}", text=note_bar), unsafe_allow_html=True)
-        
-        with note_col2:
-            st.markdown(note_style.format(title=f"Average Job Offers Key Note – {selected_level}", text=note_line), unsafe_allow_html=True)
+        col1.markdown(note_style.format(title="Entrepreneurship Note", text=job_level_notes.get(selected_level, "")), unsafe_allow_html=True)
+        col2.markdown(note_style.format(title="Job Offers Note", text=job_offers_notes.get(selected_level, "")), unsafe_allow_html=True)
