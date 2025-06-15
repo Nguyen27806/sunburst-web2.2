@@ -7,7 +7,7 @@ import numpy as np
 
 st.set_page_config(page_title="Entrepreneurship Insights", layout="wide")
 
-# 🔧 Chỉ đổi màu chữ thành đen, giữ nguyên nền
+# 🔧 Style: giữ nền bạn cài trước đó, chỉ đổi toàn bộ chữ sang đen
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter&display=swap');
@@ -30,14 +30,6 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-
-# 🧠 CSS ngoài (nếu bạn dùng file style riêng như nền pastel...)
-def local_css(file_name):
-    with open(file_name) as f:
-        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-
-# ⚠️ Mở nếu bạn có file style riêng
-local_css("style/style.css")
 
 @st.cache_data
 def load_data():
@@ -96,7 +88,6 @@ with tab1:
     if df_demo.empty:
         st.warning("⚠️ No data to display.")
     else:
-        # Summary box
         if chart_option == 'Gender Distribution':
             female_percent = (df_demo['Gender'] == 'Female').mean() * 100
             st.markdown(f"""
@@ -119,7 +110,6 @@ with tab1:
                 </div>
             """, unsafe_allow_html=True)
 
-        # Charts
         col1, col2 = st.columns(2)
         group_col = 'Gender' if chart_option == 'Gender Distribution' else 'Field_of_Study'
 
